@@ -26,6 +26,6 @@
 }
 #0969DA
 ```
-
+# Author (https://t.me/bugor600 "Telegram")
 
 ОПИСАНИЕ НЕ ДОПИСАНО ДО КОНЦА
