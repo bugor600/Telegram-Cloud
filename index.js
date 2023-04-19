@@ -82,7 +82,6 @@ if(msg.text === '/get'){
 bot.on('callback_query', async query => {
   if (!query.data) return
     const data = JSON.parse(query.data);
-    console.log(data)
 try{
     if (data.type == 'yes') {
         bot.deleteMessage(query.message.chat.id, query.message.message_id)
@@ -97,10 +96,9 @@ try{
     if(data.type == 'profile'){
         bot.editMessageReplyMarkup({
           inline_keyboard: [
-            [{ text: 'Информация', callback_data: (JSON.stringify({"type": "info"})) }, {text: 'Подписка', callback_data: 'podpiska'}],
-            [{text: '<', callback_data: (JSON.stringify({"type": "profile_return"}))}],
+            [{ text: 'Информация', callback_data: JSON.stringify({"type": "info"}) }, {text: 'Подписка', callback_data: 'podpiska'}],
+            [{text: '<', callback_data: JSON.stringify({"type": "profile_return"})}],
           ]
-          
         }, {
           chat_id: query.message.chat.id,
           message_id: query.message.message_id
@@ -120,11 +118,33 @@ try{
       return
     }
     if(data.type == 'info'){
+      console.log(query)
       const [info] = await global.pool.query(`SELECT user.telegram_id, user.first_name, user.username, user.language_code, user.createdAt, (SELECT count(save) AS save FROM file) AS save FROM user
       LEFT JOIN file f on user.telegram_id = f.telegram_id
       WHERE user.telegram_id = ?`, [msg.from.id]);
       const time_info = (moment(info[0].createdAt).format('YYYY-MM-DD HH:mm:ss'))
-      bot.sendMessage(msg.chat.id, `Telegram_id:  ${info[0].telegram_id}\nUsername:  ${info[0].username}\nFirst_name:  ${info[0].first_name}\nLanguage_code:  ${info[0].language_code}\nДата регистрации:  ${time_info}\nСохранено файлов:  ${info[0].save}`)
+      bot.editMessageText(`Добро пожаловать в облачное хранилище Telegram-Cloud\n\nПрофиль:\nTelegram_id:  ${info[0].telegram_id}\nUsername:  ${info[0].username}\nFirst_name:  ${info[0].first_name}\nLanguage_code:  ${info[0].language_code}\nДата регистрации:  ${time_info}\nСохранено файлов:  ${info[0].save}`, {message_id: query.message.message_id, chat_id: query.message.chat.id})
+      bot.editMessageReplyMarkup({
+        inline_keyboard: [
+          [{ text: '<', callback_data: JSON.stringify({"type": "info_return"})}],
+        ]
+      }, {
+        chat_id: query.message.chat.id,
+        message_id: query.message.message_id
+      });
+      //bot.sendMessage(msg.chat.id, `Telegram_id:  ${info[0].telegram_id}\nUsername:  ${info[0].username}\nFirst_name:  ${info[0].first_name}\nLanguage_code:  ${info[0].language_code}\nДата регистрации:  ${time_info}\nСохранено файлов:  ${info[0].save}`)
+      return
+    }
+    if(data.type == 'info_return'){
+      bot.editMessageReplyMarkup({
+        inline_keyboard: [
+          [{ text: 'Профиль', callback_data: JSON.stringify({"type": "profile", "message": msg.message_id, "chat": msg.chat.id})}, {text: 'Поддержка', callback_data: JSON.stringify({"type": "help"})}],
+          [{text: 'Мои файлы', callback_data: JSON.stringify({"type": "files"})}]
+        ]
+      }, {
+        chat_id: query.message.chat.id,
+        message_id: query.message.message_id
+      });
       return
     }
     if(data.type == 'files'){
@@ -142,7 +162,6 @@ try{
     }
     if(data.type == 'unfile'){
       const [infos] = await global.pool.query(`SELECT file_name, file_id FROM file WHERE telegram_id = ? AND save = ? AND file_name = ?`, [msg.from.id, true, data.file_name]);
-      console.log(infos[0])
       request(`https://api.telegram.org/bot${token.telegram}/getFile?file_id=${infos[0].file_id}`, function (error, response, body) {
       if(response.statusCode != 200) return bot.sendMessage(msg.chat.id, 'Произошла ошибка по запросу api.telegram.org')
       if(response.statusCode === 200){
@@ -187,7 +206,6 @@ try{
       return
     }
     if(data.type == 'help'){
-      console.log('test')
       bot.editMessageReplyMarkup({
         inline_keyboard: [
           [{ text: 'Telegram', url: 'https://t.me/bugor600'}, {text: 'VK', url: 'https://vk.com/bugor600'}],
