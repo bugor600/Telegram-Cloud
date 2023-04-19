@@ -18,6 +18,8 @@ const mysqlPool = mysql.createPool({
 
 global.pool = mysqlPool.promise()
 
+const start = async () => {
+
 bot.on('message', async msg => {
 if(msg.from.is_bot == true) return
 // Записываем вfсех пользователей в табличку user по нажатию /start
@@ -27,7 +29,7 @@ if(msg.text === '/start'){
     bot.sendMessage(msg.chat.id, `Добро пожаловать в облачное хранилище Telegram-Cloud`, {
       reply_markup: {
         inline_keyboard: [
-          [{ text: 'Профиль', callback_data: JSON.stringify({"type": "profile", "message": msg.message_id, "chat": msg.chat.id})}, {text: 'Поддержка', callback_data: JSON.stringify(`{"type": "help"}`)}],
+          [{ text: 'Профиль', callback_data: JSON.stringify({"type": "profile", "message": msg.message_id, "chat": msg.chat.id})}, {text: 'Поддержка', callback_data: JSON.stringify({"type": "help"})}],
           [{text: 'Мои файлы', callback_data: JSON.stringify({"type": "files"})}]
         ]
       }
@@ -38,7 +40,7 @@ if(msg.text === '/start'){
     bot.sendMessage(msg.chat.id, `Добро пожаловать в облачное хранилище Telegram-Cloud`, {
       reply_markup: {
         inline_keyboard: [
-          [{ text: 'Профиль', callback_data: JSON.stringify({"type": "profile", "message": msg.message_id, "chat": msg.chat.id})}, {text: 'Поддержка', callback_data: JSON.stringify(`{"type": "help"}`)}],
+          [{ text: 'Профиль', callback_data: JSON.stringify({"type": "profile", "message": msg.message_id, "chat": msg.chat.id})}, {text: 'Поддержка', callback_data: JSON.stringify({"type": "help"})}],
           [{text: 'Мои файлы', callback_data: JSON.stringify({"type": "files"})}]
         ]
       }
@@ -78,6 +80,7 @@ if(msg.text === '/get'){
 }
 
 bot.on('callback_query', async query => {
+  if (!query.data) return
     const data = JSON.parse(query.data);
     console.log(data)
 try{
@@ -107,7 +110,7 @@ try{
     if(data.type == 'profile_return'){
       bot.editMessageReplyMarkup({
         inline_keyboard: [
-          [{ text: 'Профиль', callback_data: JSON.stringify({"type": "profile", "message": msg.message_id, "chat": msg.chat.id})}, {text: 'Поддержка', callback_data: JSON.stringify(`{"type": "help"}`)}],
+          [{ text: 'Профиль', callback_data: JSON.stringify({"type": "profile", "message": msg.message_id, "chat": msg.chat.id})}, {text: 'Поддержка', callback_data: JSON.stringify({"type": "help"})}],
           [{text: 'Мои файлы', callback_data: JSON.stringify({"type": "files"})}]
         ]
       }, {
@@ -126,22 +129,18 @@ try{
     }
     if(data.type == 'files'){
       const [files] = await global.pool.query(`SELECT file_name FROM file WHERE telegram_id = ? AND save = ?`, [msg.from.id, true]);
-      console.log(files)
-      files.forEach(file => {
-        console.log(file.file_name)
-
         bot.editMessageReplyMarkup({
         inline_keyboard: [
-          [{ text: `${file.file_name}`, callback_data: JSON.stringify({"type": "test", "file_name": file.file_name})}],
+          [{ text: `${files[0].file_name}`, callback_data: JSON.stringify({"type": "unfile", "file_name": files[0].file_name})}],
+          [{ text: '<', callback_data: JSON.stringify({"type": "files_return"})}]
         ]
       }, {
         chat_id: query.message.chat.id,
         message_id: query.message.message_id
       });
-      });
       return
     }
-    if(data.file_name){
+    if(data.type == 'unfile'){
       const [infos] = await global.pool.query(`SELECT file_name, file_id FROM file WHERE telegram_id = ? AND save = ? AND file_name = ?`, [msg.from.id, true, data.file_name]);
       console.log(infos[0])
       request(`https://api.telegram.org/bot${token.telegram}/getFile?file_id=${infos[0].file_id}`, function (error, response, body) {
@@ -149,20 +148,74 @@ try{
       if(response.statusCode === 200){
       const obj = JSON.parse(body)
       const test = String(obj.result.file_path)
-      bot.sendMessage(msg.chat.id, `Ваш файл: ${infos[0].file_name}`, {
-        reply_markup: {
-          inline_keyboard: [[
-            { text: "Скачать", url: `https://api.telegram.org/file/bot${token.telegram}/${test}`},
-          ]]
-        }
+      bot.editMessageReplyMarkup({
+        inline_keyboard: [
+          [{ text: "Скачать", url: `https://api.telegram.org/file/bot${token.telegram}/${test}`}],
+          [{ text: '<', callback_data: JSON.stringify({"type": "download_return"})}]
+        ]
+      }, {
+        chat_id: query.message.chat.id,
+        message_id: query.message.message_id
       });
+      return
     }
-  
   })
     }
+    if(data.type == 'download_return'){
+      const [files] = await global.pool.query(`SELECT file_name FROM file WHERE telegram_id = ? AND save = ?`, [msg.from.id, true]);
+        bot.editMessageReplyMarkup({
+        inline_keyboard: [
+          [{ text: `${files[0].file_name}`, callback_data: JSON.stringify({"type": "unfile", "file_name": files[0].file_name})}],
+          [{ text: '<', callback_data: JSON.stringify({"type": "files_return"})}]
+        ]
+      }, {
+        chat_id: query.message.chat.id,
+        message_id: query.message.message_id
+      });
+      return
+    }
+    if(data.type == 'files_return'){
+      bot.editMessageReplyMarkup({
+        inline_keyboard: [
+          [{ text: 'Профиль', callback_data: JSON.stringify({"type": "profile", "message": msg.message_id, "chat": msg.chat.id})}, {text: 'Поддержка', callback_data: JSON.stringify({"type": "help"})}],
+          [{text: 'Мои файлы', callback_data: JSON.stringify({"type": "files"})}]
+        ]
+      }, {
+        chat_id: query.message.chat.id,
+        message_id: query.message.message_id
+      });
+      return
+    }
+    if(data.type == 'help'){
+      console.log('test')
+      bot.editMessageReplyMarkup({
+        inline_keyboard: [
+          [{ text: 'Telegram', url: 'https://t.me/bugor600'}, {text: 'VK', url: 'https://vk.com/bugor600'}],
+          [{text: '<', callback_data: JSON.stringify({"type": "help_return"})}]
+        ]
+      }, {
+        chat_id: query.message.chat.id,
+        message_id: query.message.message_id
+      });
+      return
+    }
+      if(data.type == 'help_return'){
+        bot.editMessageReplyMarkup({
+          inline_keyboard: [
+            [{ text: 'Профиль', callback_data: JSON.stringify({"type": "profile", "message": msg.message_id, "chat": msg.chat.id})}, {text: 'Поддержка', callback_data: JSON.stringify({"type": "help"})}],
+            [{text: 'Мои файлы', callback_data: JSON.stringify({"type": "files"})}]
+          ]
+        }, {
+          chat_id: query.message.chat.id,
+          message_id: query.message.message_id
+        });
+        return
+      }
     }catch(e){
         console.log(e)
     }
 })
 
 })
+}
+start()
