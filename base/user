@@ -1,0 +1,14 @@
+CREATE TABLE `user` (
+	`id` INT(11) NOT NULL AUTO_INCREMENT,
+	`telegram_id` BIGINT(20) NOT NULL DEFAULT '0',
+	`first_name` VARCHAR(100) NOT NULL DEFAULT '0' COLLATE 'utf8mb4_general_ci',
+	`username` VARCHAR(100) NOT NULL DEFAULT '0' COLLATE 'utf8mb4_general_ci',
+	`language_code` VARCHAR(30) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
+	`is_premium` TINYINT(4) NULL DEFAULT '0',
+	`createdAt` DATETIME NOT NULL DEFAULT current_timestamp(),
+	PRIMARY KEY (`id`) USING BTREE
+)
+COLLATE='utf8mb4_general_ci'
+ENGINE=InnoDB
+AUTO_INCREMENT=2
+;
